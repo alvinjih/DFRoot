@@ -1,0 +1,66 @@
+name: Camellia Kernel Compatibility Check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout DFRoot
+        uses: actions/checkout@v4
+
+      - name: Clone POCO M3 Pro 5G kernel
+        run: |
+          git clone --depth=1 \
+            --branch lineage-23.2 \
+            https://github.com/cristidclxvi/android_kernel_xiaomi_camellia.git \
+            camellia-kernel
+
+      - name: Check kernel
+        run: |
+          cd camellia-kernel
+
+          echo "===== DEVICE ====="
+          echo "POCO M3 Pro 5G / M2103K19PG"
+          echo "MT6833 / camellia"
+          echo
+
+          echo "===== KERNEL VERSION ====="
+          make kernelversion || true
+          git log -1 --oneline
+          echo
+
+          echo "===== BUILD CONFIG ====="
+          cat build.config.common || true
+          echo
+
+          echo "===== DEFCONFIG FILES ====="
+          find arch -type f \
+            \( -name '*camellia*defconfig' -o -name '*camellian*defconfig' \) \
+            -print | head -50
+          echo
+
+          echo "===== DFROOT LKM ====="
+          cd ../lkm
+          find . -maxdepth 3 -type f | sort
+
+      - name: Save report
+        run: |
+          mkdir -p report
+          {
+            echo "POCO M3 Pro 5G"
+            echo "Model: M2103K19PG"
+            echo "SoC: MT6833"
+            echo "Stock kernel reported by device: 4.14.186"
+            echo
+            echo "DFRoot compatibility check completed."
+            echo "No phone files were modified."
+          } > report/camellia-report.txt
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: camellia-compatibility-report
+          path: report/
