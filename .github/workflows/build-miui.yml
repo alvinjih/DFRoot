@@ -8,5 +8,27 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout DFRoot
-        uses: actions/
+      - uses: actions/checkout@v4
+
+      - name: Set up Build Environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential bc bison flex libssl-dev libelf-dev git gcc-aarch64-linux-gnu
+
+      - name: Clone MIUI Kernel Source
+        run: |
+          git clone --depth=1 -b camellia-t-oss https://github.com/MiCode/Xiaomi_Kernel_OpenSource.git kernel
+
+      - name: Build DFRoot Module
+        run: |
+          cd kernel
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- camellia_defconfig
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- prepare modules_prepare
+          cd ../lkm
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- KDIR=../kernel
+
+      - name: Upload Artifact (.ko file)
+        uses: actions/upload-artifact@v4
+        with:
+          name: dfroot-miui-camellia-ko
+          path: lkm/*.ko
