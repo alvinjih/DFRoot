@@ -5,29 +5,39 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout DFRoot
+        uses: actions/checkout@v4
 
-      - name: Set up Build Environment
+      - name: Install Build Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential bc bison flex libssl-dev libelf-dev git gcc-aarch64-linux-gnu
+          sudo apt-get install -y build-essential bc bison flex libssl-dev libelf-dev git libncurses5-dev libncursesw5-dev
+
+      - name: Download AArch64 Toolchain
+        run: |
+          git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9.git toolchain
 
       - name: Clone MIUI Kernel Source
         run: |
           git clone --depth=1 -b camellia-t-oss https://github.com/MiCode/Xiaomi_Kernel_OpenSource.git kernel
 
-      - name: Build DFRoot Module
+      - name: Build Kernel Module (.ko)
         run: |
+          export PATH=$(pwd)/toolchain/bin:$PATH
+          export ARCH=arm64
+          export CROSS_COMPILE=aarch64-linux-android-
+          
           cd kernel
-          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- camellia_defconfig
-          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- prepare modules_prepare
+          make camellia_defconfig
+          make -j$(nproc) modules_prepare
+          
           cd ../lkm
-          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- KDIR=../kernel
+          make KDIR=../kernel
 
-      - name: Upload Artifact (.ko file)
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: dfroot-miui-camellia-ko
